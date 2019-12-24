@@ -150,41 +150,78 @@ router.post('/app/inventorySyncCreate', (req, res)=>{
     
 })
 router.post('/app/inventorySyncUpdate', (req, res)=>{
-    console.log(req.body)
-    const product_id = req.body.id;
-    const product_update = req.body;
-    let url = `https://crisp-shop2.myshopify.com/admin/api/2019-10/products/#${product_id}.json`;
+    // testing to update inventory level for the first Product Variant 
+    const product_id = req.body.id; // Product Id
+    const products_update = req.body.variants; // Array of Product Variants
+    const available = req.body.variants[0].inventory_quantity; //First Product Qty to use for the update
+    console.log(product_update)
+    // Step 1: Query a variant for to find the id 
+    // of its inventory item 
     
-    let options = {
-        method: 'PUT',
-        uri: url,
-        json: true,
-        resolveWithFullResponse: true,//added this to view status code
-        headers: {
-            'X-Shopify-Access-Token': process.env.appStoreTokenTest,
-            'content-type': 'application/json'
-        },
-        body: {
-            product: product_update//pass new product object - NEW - request-promise problably updated
-            }
-        };
+        let url1 = `https://crisp-shop2.myshopify.com/admin/api/2019-10/products/${req.body.variants[0].product_id}/variants/${req.body.variants[0].id}.json`;
+        let url_il_1 = `https://crisp-shop2.myshopify.com/admin/api/2019-10/inventory_levels.json?inventory_item_ids=${inventory_item_id}`
+        
+            request(url1).then(response=>{// request made to get inventory_item_id
+            const inventory_item_id = response.inventory_item_id;
+            request(url_il_1).then(response =>{// request made to get location_id
+            const location_id = response.inventory_levels[0].location_id;
+            
+            let url_set_il_1 = `https://crisp-shop2.myshopify.com/admin/api/2019-10/inventory_levels/set.json`
+            let options = {
+                method: 'POST',
+                uri: url_set_il_1,
+                json: true,
+                resolveWithFullResponse: true,//added this to view status code
+                headers: {
+                    'X-Shopify-Access-Token': process.env.appStoreTokenTest,
+                    'content-type': 'application/json'
+                },
+                body: {
+                    location_id, 
+                    inventory_item_id,
+                    available
+                    }
+                };
+                request(options).then(response =>{// request made to update the first product
+                    console.log(response.statusCode)
+                    res.status(200).send('update successful')
+            })
+            .catch(err=> console.error(err))
+            }).catch(err=> console.error(err))
+        }).catch(err=> console.error(err))
+    })
 
-        request.put(options) //use the "request-promise" to create a new product
-        .then(response =>{
-            console.log(response.statusCode)
-            if(response.statusCode === 200){
-                res.status(200).send('Product update was successful')
-            }
-            else{
-                res.status(400).send('Something went wrong')
-            }
-        })
-        .catch( err =>{
-            console.error(err)
-        })
-
+    // This is what I attempted first to get the update to work
+    //
+    // let url = `https://crisp-shop2.myshopify.com/admin/api/2019-10/products/#${req.body.id}.json`;
     
-})
+    // let options = {
+    //     method: 'PUT',
+    //     uri: url,
+    //     json: true,
+    //     resolveWithFullResponse: true,//added this to view status code
+    //     headers: {
+    //         'X-Shopify-Access-Token': process.env.appStoreTokenTest,
+    //         'content-type': 'application/json'
+    //     },
+    //     body: {
+    //         product: product_update
+    //         }
+    //     };
+
+    //     request.put(options) //use the "request-promise" to create a new product
+    //     .then(response =>{
+    //         console.log(response.statusCode, response.status)
+    //         if(response.statusCode === 200){
+    //             res.status(200).send('Product update was successful')
+    //         }
+    //         else{
+    //             res.status(400).send('Something went wrong')
+    //         }
+    //     })
+    //     .catch( err =>{
+    //         console.error(err)
+    //     })
 
 router.post('/app/file-upload', function (req, res, next) {
 
